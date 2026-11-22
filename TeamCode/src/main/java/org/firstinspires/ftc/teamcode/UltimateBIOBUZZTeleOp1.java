@@ -37,10 +37,10 @@ import java.util.List;
  *
  *  GAMEPAD 2 (operator)
  *    Left stick Y ...... intake (down = intake in, up = push pieces back out)
- *    Left trigger ...... POLLEN outtake ON  (spins up, opens gate when at speed)
- *    Left bumper ....... POLLEN outtake OFF (closes gate, stops wheel)
- *    Right trigger ..... NECTAR outtake ON
- *    Right bumper ...... NECTAR outtake OFF
+ *    Left trigger ...... toggle POLLEN outtake
+ *                          ON:  spins up, opens gate when at speed
+ *                          OFF: closes gate, stops wheel
+ *    Right trigger ..... toggle NECTAR outtake (same as pollen)
  *    X ................. toggle pollen gate
  *    B ................. toggle nectar gate
  *
@@ -48,7 +48,7 @@ import java.util.List;
  * ============================================================================
  */
 @TeleOp(name = "BioBuzz TeleOp", group = "TeleOp")
-public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
+public class BioBuzzTeleOp extends LinearOpMode {
 
     // =========================================================================
     //  DEV MODE  - set to false before competition
@@ -188,7 +188,6 @@ public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
         boolean gateOpen = false;
 
         final ElapsedTime spinUpTimer = new ElapsedTime();
-        boolean timingFromStop = false;
         double lastSpinUpSec = -1;
         boolean lastSpinUpTimedOut = false;
 
@@ -203,23 +202,21 @@ public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
             this.rumbleLeftSide = rumbleLeftSide;
         }
 
-        /** Trigger pressed: spin up first, gate opens in update() once at speed. */
+        /** Trigger pressed: OFF -> start, anything else -> stop. */
+        void toggle() {
+            if (state == OuttakeState.OFF) start();
+            else stop();
+        }
+
+        /** Spin up first, gate opens in update() once at speed. */
         void start() {
-            if (state == OuttakeState.OFF) {
-                setGate(false);          // keep pieces off the wheel until it's moving
-                spinUpTimer.reset();
-                timingFromStop = true;
-                state = OuttakeState.SPINNING_UP;
-            } else if (state == OuttakeState.FIRING && !gateOpen) {
-                // Wheel already running but gate was closed by hand -> reopen once at speed
-                spinUpTimer.reset();
-                timingFromStop = false;
-                state = OuttakeState.SPINNING_UP;
-            }
+            setGate(false);              // keep pieces off the wheel until it's moving
+            spinUpTimer.reset();
+            state = OuttakeState.SPINNING_UP;
             motor.setVelocity(rpmToTicks(targetRpm));
         }
 
-        /** Bumper pressed: close gate, let the wheel coast down. */
+        /** Close gate, let the wheel coast down. */
         void stop() {
             setGate(false);
             motor.setPower(0);
@@ -249,10 +246,8 @@ public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
             boolean ready = isAtSpeed();
             boolean timedOut = spinUpTimer.seconds() >= SPINUP_TIMEOUT_SEC;
             if (ready || timedOut) {
-                if (timingFromStop) {
-                    lastSpinUpSec = spinUpTimer.seconds();
-                    lastSpinUpTimedOut = !ready;
-                }
+                lastSpinUpSec = spinUpTimer.seconds();
+                lastSpinUpTimedOut = !ready;
                 setGate(true);
                 state = OuttakeState.FIRING;
                 if (rumbleLeftSide) gamepad2.rumble(1.0, 0.0, 250);
@@ -386,9 +381,9 @@ public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
         ServoImplEx pollenGate = initGateServo(POLLEN_GATE_NAME);
         ServoImplEx nectarGate = initGateServo(NECTAR_GATE_NAME);
 
-        pollen = new Outtake("POLLEN (LT on / LB off)", pollenMotor, pollenGate,
+        pollen = new Outtake("POLLEN (LT toggles)", pollenMotor, pollenGate,
                 POLLEN_GATE_CLOSED_DEG, POLLEN_GATE_OPEN_DEG, POLLEN_RPM, true);
-        nectar = new Outtake("NECTAR (RT on / RB off)", nectarMotor, nectarGate,
+        nectar = new Outtake("NECTAR (RT toggles)", nectarMotor, nectarGate,
                 NECTAR_GATE_CLOSED_DEG, NECTAR_GATE_OPEN_DEG, NECTAR_RPM, false);
 
         // IMU
@@ -478,11 +473,9 @@ public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
         boolean rtNow  = currGp2.right_trigger > TRIGGER_THRESHOLD;
         boolean rtPrev = prevGp2.right_trigger > TRIGGER_THRESHOLD;
 
-        if (ltNow && !ltPrev) pollen.start();
-        if (justPressed(currGp2.left_bumper, prevGp2.left_bumper)) pollen.stop();
-
-        if (rtNow && !rtPrev) nectar.start();
-        if (justPressed(currGp2.right_bumper, prevGp2.right_bumper)) nectar.stop();
+        // Triggers toggle the outtakes on/off
+        if (ltNow && !ltPrev) pollen.toggle();
+        if (rtNow && !rtPrev) nectar.toggle();
 
         // Gate toggles (gp2, always)
         if (justPressed(currGp2.x, prevGp2.x)) pollen.toggleGate();
