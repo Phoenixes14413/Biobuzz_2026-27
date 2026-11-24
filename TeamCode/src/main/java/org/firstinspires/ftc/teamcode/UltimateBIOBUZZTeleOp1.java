@@ -47,8 +47,8 @@ import java.util.List;
  *  Gp2 rumbles on the LEFT side when pollen is at speed, RIGHT side for nectar.
  * ============================================================================
  */
-@TeleOp(name = "BioBuzz TeleOp", group = "TeleOp")
-public class BioBuzzTeleOp extends LinearOpMode {
+@TeleOp(name = "BioBuzz TeleOp ULTIMATE", group = "TeleOp")
+public class UltimateBIOBUZZTeleOp1 extends LinearOpMode {
 
     // =========================================================================
     //  DEV MODE  - set to false before competition
